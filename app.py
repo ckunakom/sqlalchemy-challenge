@@ -42,8 +42,10 @@ def home():
         f"/api/v1.0/precipitation<br/>"
         f"/api/v1.0/stations<br/>"
         f"/api/v1.0/tobs<br/>"
-        f"/api/v1.0/<start><br/>"
-        f"/api/v1.0/<start>/<end>"
+        f"<br/>"
+        f"Replace 'start' and 'end' with YYYY-MM-DD<br/>"
+        f"/api/v1.0/start<br/>"
+        f"/api/v1.0/start/end"
     )
 
 # Define precipitation route("/api/v1.0/precipitation")
@@ -92,7 +94,7 @@ def tobs():
     session = Session(engine)
 
     # Query dates and temperature observations of the most active station for the last year of data.
-    highest_station = session.query(Measurement.date, Measurement.tobs).\
+    highest_station = session.query(Measurement.tobs).\
     filter(Station.id == 7).\
     filter(Station.station == Measurement.station).\
     filter(func.strftime(Measurement.date) >= firstdate).\
@@ -100,54 +102,50 @@ def tobs():
 
     session.close()
 
-    # Convert list of tuples into list - Not very easy to look at!
+    # Convert list of tuples into list
     highest_station_list = list(np.ravel(highest_station))
-
-    # # Convert the query results to a dictionary to make the page easier to read...
-    # highest_station_list = []
-
-    # for date, tobs in highest_station:
-    #     tobs_dict = {}
-    #     tobs_dict['Date'] = date
-    #     tobs_dict['TOBS'] = tobs
-    #     highest_station_list.append(tobs_dict)
 
     return jsonify(highest_station_list)
 
 # Define station route("/api/v1.0/<start>")
 @app.route("/api/v1.0/<start>")
-def start():
+def date(start):
+
     # Create  session from Python to the DB
     session = Session(engine)
-
-
-
+   
+    # Query list of the minimum temperature, the average temperature, and the max temperature for a given start date
+    tobs_temp = session.query(Measurement.date, func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+    filter(func.strftime(Measurement.date) >= start).\
+    group_by(Measurement.date).all()
 
     session.close()
 
+    # Convert list of tuples into list - Not very easy to look at!
+    min_avg_max_list = list(np.ravel(tobs_temp))
+
+    return jsonify(min_avg_max_list)
 
 
+# Define station route("/api/v1.0/<start>/<end>")
+@app.route("/api/v1.0/<start>/<end>")
+def date_start_end(start, end):
 
-    return
-
-
-# Define station route("/api/v1.0/<end>")
-@app.route("/api/v1.0/<end>")
-def end():
     # Create  session from Python to the DB
     session = Session(engine)
 
-
-
+    # Query list of the minimum temperature, the average temperature, and the max temperature for a given start date
+    tobs_temp = session.query(Measurement.date, func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+    filter(func.strftime(Measurement.date) >= start).filter(Measurement.date <= end).\
+    group_by(Measurement.date).all()
 
     session.close()
 
+    # Convert list of tuples into list - Not very easy to look at!
+    min_avg_max_list = list(np.ravel(tobs_temp))
 
+    return jsonify(min_avg_max_list)
 
-    
-    return
-
-
-
+# The End.
 if __name__ == "__main__":
     app.run(debug=True)
